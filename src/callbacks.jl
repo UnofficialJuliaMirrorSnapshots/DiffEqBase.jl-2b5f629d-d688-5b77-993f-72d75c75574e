@@ -207,8 +207,8 @@ function get_condition(integrator::DEIntegrator, callback, abst)
   end
   integrator.sol.destats.ncondition += 1
   if callback isa VectorContinuousCallback
-    callback.condition(@view(integrator.callback_cache[1:callback.len]),tmp,abst,integrator)
-    return @view(integrator.callback_cache[1:callback.len])
+    callback.condition(@view(integrator.callback_cache.tmp_condition[1:callback.len]),tmp,abst,integrator)
+    return @view(integrator.callback_cache.tmp_condition[1:callback.len])
   else
     return callback.condition(tmp,abst,integrator)
   end
@@ -251,7 +251,7 @@ end
   Θs = range(typeof(integrator.t)(0), stop=typeof(integrator.t)(1), length=callback.interp_points)
   interp_index = 0
   # Check if the event occured
-  previous_condition = @views(integrator.previous_condition[1:callback.len])
+  previous_condition = @views(integrator.callback_cache.previous_condition[1:callback.len])
 
   if typeof(callback.idxs) <: Nothing
     callback.condition(previous_condition,integrator.uprev,integrator.tprev,integrator)
@@ -261,8 +261,8 @@ end
 
   integrator.sol.destats.ncondition += 1
   ivec = integrator.vector_event_last_time
-  prev_sign = @view(integrator.callback_prev_sign[1:callback.len])
-  next_sign = @view(integrator.callback_next_sign[1:callback.len])
+  prev_sign = @view(integrator.callback_cache.prev_sign[1:callback.len])
+  next_sign = @view(integrator.callback_cache.next_sign[1:callback.len])
 
 
   if integrator.event_last_time == counter && minimum(ODE_DEFAULT_NORM(previous_condition[ivec],integrator.t)) < 100ODE_DEFAULT_NORM(integrator.last_event_error,integrator.t)
@@ -281,7 +281,7 @@ end
     end
 
     # Evaluate condition slightly in future
-    abst = integrator.tprev+max(integrator.dt/1000,sign(integrator.dt)*100*eps(integrator.t))
+    abst = integrator.tprev+max(integrator.dt/10000,sign(integrator.dt)*100*eps(integrator.t))
     tmp_condition = get_condition(integrator, callback, abst)
 
     # Sometimes users may "switch off" the condition after crossing
@@ -359,7 +359,7 @@ end
     end
 
     # Evaluate condition slightly in future
-    abst = integrator.tprev+max(integrator.dt/1000,sign(integrator.dt)*100*eps(integrator.t))
+    abst = integrator.tprev+max(integrator.dt/10000,sign(integrator.dt)*100*eps(integrator.t))
     tmp_condition = get_condition(integrator, callback, abst)
 
     # Sometimes users may "switch off" the condition after crossing
@@ -438,6 +438,7 @@ function find_callback_time(integrator,callback::ContinuousCallback,counter)
             iter == 12 && error("Double callback crossing floating pointer reducer errored. Report this issue.")
           end
           Θ = prevfloat(find_zero(zero_func, (bottom_θ,top_Θ), Roots.AlefeldPotraShi(), atol = callback.abstol/100))
+          integrator.last_event_error = ODE_DEFAULT_NORM(zero_func(Θ),integrator.t+integrator.dt*Θ)
         end
         #Θ = prevfloat(...)
         # prevfloat guerentees that the new time is either 1 floating point
@@ -621,11 +622,28 @@ end
 
 function max_vector_callback_length(cs::CallbackSet)
   continuous_callbacks = cs.continuous_callbacks
+  maxlen_cb = nothing
   maxlen = -1
   for cb in continuous_callbacks
-    if cb isa VectorContinuousCallback
-      maxlen = max(maxlen,cb.len)
+    if cb isa VectorContinuousCallback && cb.len > maxlen
+      maxlen = cb.len
+      maxlen_cb = cb
     end
   end
-  maxlen
+  maxlen_cb
+end
+
+mutable struct CallbackCache{conditionType,signType}
+  tmp_condition::conditionType
+  previous_condition::conditionType
+  next_sign::signType
+  prev_sign::signType
+end
+
+function CallbackCache(max_len,conditionType::Type,signType::Type)
+    tmp_condition = zeros(conditionType, max_len)
+    previous_condition = zeros(conditionType, max_len)
+    next_sign = zeros(signType, max_len)
+    prev_sign = zeros(signType, max_len)
+    CallbackCache{Array{conditionType},Array{signType}}(tmp_condition,previous_condition,next_sign,prev_sign)
 end
