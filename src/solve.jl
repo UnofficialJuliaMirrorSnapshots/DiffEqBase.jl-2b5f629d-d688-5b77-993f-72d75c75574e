@@ -42,6 +42,10 @@ function solve(prob::DEProblem,args...;kwargs...)
   end
 end
 
+function solve(prob::EnsembleProblem,args...;kwargs...)
+  __solve(prob,args...;kwargs...)
+end
+
 function get_concrete_problem(prob::AbstractJumpProblem,kwargs)
   prob
 end
@@ -51,7 +55,7 @@ function get_concrete_problem(prob::AbstractSteadyStateProblem, kwargs)
   remake(prob; u0 = u0)
 end
 
-function get_concrete_problem(prob::AbstractMonteCarloProblem, kwargs)
+function get_concrete_problem(prob::AbstractEnsembleProblem, kwargs)
   prob
 end
 
