@@ -55,7 +55,7 @@ function check_keywords(alg, kwargs, warnlist)
     flg = false
     for (kw, val) in kwargs
         if kw in warnlist
-            if val != nothing
+            if val !== nothing
                 flg = true
                 @warn(string("The ", kw, " argument is ignored by ", alg, "."))
             end
@@ -196,8 +196,6 @@ _vec(v::AbstractVector) = v
 
 _reshape(v, siz) = reshape(v, siz)
 _reshape(v::Number, siz) = v
-
-islinear(f) = f isa AbstractDiffEqLinearOperator && is_constant(f)
 
 macro tight_loop_macros(ex)
    :($(esc(ex)))

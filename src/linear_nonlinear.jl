@@ -19,6 +19,23 @@ function (p::LinSolveFactorize)(::Type{Val{:init}},f,u0_prototype)
   LinSolveFactorize(p.factorization,nothing)
 end
 
+mutable struct LinSolveGPUFactorize{F,T}
+  factorization::F
+  A
+  x_cache::T
+end
+LinSolveGPUFactorize(factorization=qr) = LinSolveGPUFactorize(factorization,nothing,nothing)
+function (p::LinSolveGPUFactorize)(x,A,b,update_matrix=false;kwargs...)
+  if update_matrix
+    p.A = p.factorization(cuify(A))
+  end
+  ldiv!(p.x_cache,p.A,cuify(b))
+  x .= Array(p.x_cache)
+end
+function (p::LinSolveGPUFactorize)(::Type{Val{:init}},f,u0_prototype)
+  LinSolveGPUFactorize(p.factorization,nothing,cuify(u0_prototype))
+end
+
 ### Default Linsolve
 
 # Try to be as smart as possible
@@ -84,19 +101,34 @@ const DEFAULT_LINSOLVE = DefaultLinSolve()
 
 # Easily change to GMRES
 
-mutable struct LinSolveGMRES{PL,PR,A}
+mutable struct LinSolveIterativeSolvers{F,PL,PR,AR,A}
+  generate_iterator::F
   iterable
   Pl::PL
   Pr::PR
+  args::AR
   kwargs::A
 end
-LinSolveGMRES(;Pl=IterativeSolvers.Identity(), Pr=IterativeSolvers.Identity(), kwargs...) = LinSolveGMRES(nothing, Pl, Pr, kwargs)
+LinSolveIterativeSolvers(generate_iterator,args...;
+                         Pl=IterativeSolvers.Identity(),
+                         Pr=IterativeSolvers.Identity(),
+                         kwargs...) =
+                         LinSolveIterativeSolvers(generate_iterator, nothing, Pl, Pr, args, kwargs)
 
-function (f::LinSolveGMRES)(x,A,b,update_matrix=false; Pl=nothing, Pr=nothing, tol=nothing, kwargs...)
+LinSolveGMRES(args...;kwargs...) = LinSolveIterativeSolvers(IterativeSolvers.gmres_iterable!,args...;kwargs...)
+LinSolveCG(args...;kwargs...) = LinSolveIterativeSolvers(IterativeSolvers.cg_iterator!,args...;kwargs...)
+LinSolveBiCGStabl(args...;kwargs...) = LinSolveIterativeSolvers(IterativeSolvers.bicgstabl_iterator!,args...;kwargs...)
+LinSolveChebyshev(args...;kwargs...) = LinSolveIterativeSolvers(IterativeSolvers.chebyshev_iterable!,args...;kwargs...)
+LinSolveMINRES(args...;kwargs...) = LinSolveIterativeSolvers(IterativeSolvers.minres_iterable!,args...;kwargs...)
+
+function (f::LinSolveIterativeSolvers)(x,A,b,update_matrix=false; Pl=nothing, Pr=nothing, tol=nothing, kwargs...)
   if f.iterable === nothing
     Pl = ComposePreconditioner(f.Pl, Pl, true)
     Pr = ComposePreconditioner(f.Pr, Pr, false)
-    f.iterable = IterativeSolvers.gmres_iterable!(x,A,b;initially_zero=true,restart=5,maxiter=5,tol=1e-16,Pl=Pl,Pr=Pr,f.kwargs...,kwargs...)
+    f.iterable = f.generate_iterator(x,A,b,f.args...;
+                                     initially_zero=true,restart=5,
+                                     maxiter=5,tol=1e-16,Pl=Pl,Pr=Pr,
+                                     f.kwargs...,kwargs...)
     tol′ = get(f.kwargs, :tol, nothing)
     tol′ !== nothing && (tol = tol′)
     f.iterable.reltol = tol
@@ -110,8 +142,8 @@ function (f::LinSolveGMRES)(x,A,b,update_matrix=false; Pl=nothing, Pr=nothing, t
   return nothing
 end
 
-function (p::LinSolveGMRES)(::Type{Val{:init}},f,u0_prototype)
-  LinSolveGMRES(nothing, p.Pl, p.Pr, p.kwargs)
+function (p::LinSolveIterativeSolvers)(::Type{Val{:init}},f,u0_prototype)
+  LinSolveIterativeSolvers(p.generate_iterator, nothing, p.Pl, p.Pr, p.args, p.kwargs)
 end
 
 # scaling for iterative solvers

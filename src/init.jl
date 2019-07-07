@@ -1,6 +1,11 @@
 value(x) = x
+cuify(x) = error("To use LinSolveGPUFactorize, you must do `using CuArrays`")
 
 function __init__()
+  @require ApproxFun="28f2ccd6-bb30-5033-b560-165f7b14dc2f" begin
+    eval_u0(u0::ApproxFun.Fun) = false
+  end
+
   @require Distributions="31c24e10-a181-5473-b8eb-7969acd0382f" begin
     handle_distribution_u0(_u0::Distributions.Sampleable) = rand(_u0)
   end
@@ -110,10 +115,10 @@ function __init__()
 
   # Piracy, should get upstreamed
   @require CuArrays="3a865a2d-5b23-5a0f-bc46-62713ec82fae" begin
-    function ldiv!(x::CuArrays.CuArray,_qr::CuArrays.CUSOLVER.CuQR,b::CuArrays.CuArray)
+    cuify(x::AbstractArray) = CuArrays.CuArray(x)
+    function Base.ldiv!(x::CuArrays.CuArray,_qr::CuArrays.CUSOLVER.CuQR,b::CuArrays.CuArray)
       _x = UpperTriangular(_qr.R) \ (_qr.Q' * reshape(b,length(b),1))
       x .= vec(_x)
     end
   end
-
 end
