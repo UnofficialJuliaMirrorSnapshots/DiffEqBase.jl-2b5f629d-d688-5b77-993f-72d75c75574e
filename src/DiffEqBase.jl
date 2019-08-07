@@ -2,7 +2,7 @@ module DiffEqBase
 
 using RecipesBase, RecursiveArrayTools, Compat,
       Requires, TableTraits, IteratorInterfaceExtensions, TreeViews,
-      IterativeSolvers, RecursiveFactorization, Distributed
+      IterativeSolvers, RecursiveFactorization, Distributed, ArrayInterface
 
 using Roots # callbacks
 
@@ -15,7 +15,6 @@ using DocStringExtensions
 using FunctionWrappers: FunctionWrapper
 
 using MuladdMacro, Parameters
-
 
 # Problems
 """
@@ -357,6 +356,13 @@ $(TYPEDEF)
 Base for types defining differential equation functions.
 """
 abstract type AbstractDiffEqFunction{iip} <: Function end
+
+"""
+$(TYPEDEF)
+
+Base for types which define the history of a delay differential equation.
+"""
+abstract type AbstractHistoryFunction <: Function end
 
 """
 $(TYPEDEF)
