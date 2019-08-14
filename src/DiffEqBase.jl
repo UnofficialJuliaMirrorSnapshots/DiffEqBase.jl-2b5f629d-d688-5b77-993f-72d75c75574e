@@ -401,10 +401,12 @@ include("nlsolve/type.jl")
 include("nlsolve/newton.jl")
 include("nlsolve/functional.jl")
 include("nlsolve/utils.jl")
+include("operators/diffeq_operator.jl")
+include("operators/common_defaults.jl")
+include("operators/basic_operators.jl")
 include("interpolation.jl")
 include("callbacks.jl")
 include("integrator_interface.jl")
-include("diffeq_operator.jl")
 include("linear_nonlinear.jl")
 include("common_defaults.jl")
 include("data_array.jl")
@@ -487,6 +489,8 @@ export LinSolveFactorize, LinSolveGPUFactorize, DefaultLinSolve, DEFAULT_LINSOLV
 
 export AffineDiffEqOperator, update_coefficients!, update_coefficients, isconstant,
        has_expmv!, has_expmv, has_exp, has_mul, has_mul!, has_ldiv, has_ldiv!
+
+export DiffEqScalar, DiffEqArrayOperator, DiffEqIdentity
 
 export NLNewton, NLFunctional, NLAnderson
 
