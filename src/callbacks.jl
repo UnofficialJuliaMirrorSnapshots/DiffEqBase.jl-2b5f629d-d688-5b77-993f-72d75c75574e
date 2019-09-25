@@ -80,8 +80,9 @@ VectorContinuousCallback(condition,affect!,affect_neg!,len;
                          rootfind=true,
                          save_positions=(true,true),
                          interp_points=10,
-                         abstol=10eps(),reltol=0) = ContinuousCallback(
-                              condition,affect!,affect_neg!,initialize,
+                         abstol=10eps(),reltol=0) = VectorContinuousCallback(
+                              condition,affect!,affect_neg!,len,
+                              initialize,
                               idxs,
                               rootfind,interp_points,
                               save_positions,abstol,reltol)
@@ -636,7 +637,15 @@ mutable struct CallbackCache{conditionType,signType}
   prev_sign::signType
 end
 
-function CallbackCache(max_len,conditionType::Type,signType::Type)
+function CallbackCache(u,max_len,::Type{conditionType},::Type{signType}) where {conditionType,signType}
+    tmp_condition = similar(u, conditionType, max_len)
+    previous_condition = similar(u, conditionType, max_len)
+    next_sign = similar(u, signType, max_len)
+    prev_sign = similar(u, signType, max_len)
+    CallbackCache{typeof(tmp_condition),typeof(next_sign)}(tmp_condition,previous_condition,next_sign,prev_sign)
+end
+
+function CallbackCache(max_len,::Type{conditionType},::Type{signType}) where {conditionType,signType}
     tmp_condition = zeros(conditionType, max_len)
     previous_condition = zeros(conditionType, max_len)
     next_sign = zeros(signType, max_len)
