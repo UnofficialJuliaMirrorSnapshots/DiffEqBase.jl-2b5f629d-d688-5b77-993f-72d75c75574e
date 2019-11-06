@@ -1,7 +1,26 @@
+"""
+$(TYPEDEF)
+"""
 abstract type BasicEnsembleAlgorithm <: EnsembleAlgorithm end
+
+"""
+$(TYPEDEF)
+"""
 struct EnsembleThreads <: BasicEnsembleAlgorithm end
+
+"""
+$(TYPEDEF)
+"""
 struct EnsembleDistributed <: BasicEnsembleAlgorithm end
+
+"""
+$(TYPEDEF)
+"""
 struct EnsembleSplitThreads <: BasicEnsembleAlgorithm end
+
+"""
+$(TYPEDEF)
+"""
 struct EnsembleSerial <: BasicEnsembleAlgorithm end
 
 #=
@@ -37,7 +56,7 @@ function __solve(prob::AbstractEnsembleProblem,
         @error "parallel_type value not recognized"
       end
     else
-      ensemblealg = EnsembleSerial()
+      ensemblealg = EnsembleThreads()
     end
     if :num_monte ∈ keys(kwargs)
       @warn "num_monte has been replaced by trajectories"
